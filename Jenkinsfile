@@ -13,20 +13,33 @@ pipeline {
 
     stages {
         stage('Building packages') {
+            agent {
+                docker { 
+                    image 'gcr.io/i-lastfm-tools/ubuntu-trusty-buildenv' 
+                    args '-u root:sudo -v /etc/passwd:/etc/passwd -v /etc/group:/etc/group'
+                }
+            }
             steps {
-                sh '''\
-                    set -ex
-                    rm -f lastfm-* 
-                    docker run -e OWNER="$(id -u $USER):$(id -g $USER)" --rm -w /app-src -v $(pwd):/app-src gcr.io/i-lastfm-tools/ubuntu-trusty-buildenv ./pybuild.sh
-                '''.stripIndent()
                 script {
-                    if (env.BRANCH_NAME == 'master') {
-                        println("Uploading artifacts to the nexus")
-                        findFiles(glob: './*.deb').each {
-                            utilities.uploadDebian(it.path)
-                        }
+                    sh """
+                        ./pybuild.sh
+                        chown jenkins:jenkins .
+                    """.stripIndent()
+                }
+                stash includes: '*.deb', name: 'deb_artifacts'
+            }
+        }
+        stage("Upload artifacts to nexus"){
+            when {
+                branch 'master'
+            }
+            steps{
+                script {
+                    unstash 'deb_artifacts'
+                    println("Uploading artifacts to the nexus")
+                    findFiles(glob: './*.deb').each {
+                        utilities.uploadDebian(it.path)
                     }
-                    
                 }
             }
         }

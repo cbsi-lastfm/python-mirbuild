@@ -23,7 +23,7 @@ pipeline {
                 script {
                     sh """
                         ./pybuild.sh
-                        chown jenkins:jenkins .
+                        chown -R jenkins:jenkins .
                     """.stripIndent()
                 }
                 stash includes: '*.deb', name: 'deb_artifacts'
